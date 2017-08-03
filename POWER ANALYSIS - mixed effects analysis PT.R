@@ -19,10 +19,10 @@ library(simr)
 mixed3<-lmer(RT~ 1 + Block + TP + (Block-1|ID), data=mm_data)
 
 pc1<-powerSim(mixed3, test=fixed("Block"),nsim=500, seed=1981)
-
+pc1<-powerSim(mixed3, test=fixed("TPPR"),nsim=500, seed=1981)
 
 #simulate additional subjects based on the pilot data
-mixed3ex<-extend(mixed3,along="ID",n=30)
+mixed3ex<-extend(mixed3,along="ID",n=50)
 
 #repeat the power calc based on the new N.
 pc2<-powerSim(mixed3ex, test=fixed("Block"),nsim=100, seed=1981)
@@ -44,6 +44,10 @@ pc2<-powerSim(mixed3ex, test=fixed("Block"),nsim=100, seed=1981)
 #to fix in package use: fixInNamespace("getDefaultXname","simr")
 
 
-powerCurve(mixed3,test=fixef(mixed3ex))
+PC1<-powerCurve(mixed3ex,along="ID")
+plot(PC1)
 
 
+mixed3ex<-extend(mixed3,along="ID",n=500)
+
+pc2<-powerCurve(mixed3ex,test=fixed("TPPR"),along="ID")
