@@ -1,2 +1,1 @@
-# kuppuraj-study
-statistical learning and working memory
+# statistical learning and working memory
