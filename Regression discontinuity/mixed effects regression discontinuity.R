@@ -71,7 +71,7 @@ for (i in 1:nsubs){
 
 
 main.data$ID <- as.factor(main.data$ID)
-
+main.data$log_TargetRT<-log(main.data$TargetRT)
   
 bp1=25 #cutpoint 1
 bp2=33 #cutpoint 2
@@ -130,13 +130,58 @@ newdat3d$broke2<-ifelse(newdat3d$SetInd %in% c(33:40),1,0)
   library(RColorBrewer)
   library(ggplot2)
 
-  ggplot(main.data, aes(x = SetInd, y = TargetRT,color=Type)) + 
+  ggplot(main.data2, aes(x = SetInd, y = TargetRT,color=Type)) + 
   geom_point(alpha=0.35) + 
   geom_vline(aes(xintercept = 25), color = 'grey', size = 1, linetype = 'dashed') + 
   geom_vline(aes(xintercept = 33), color = 'grey', size = 1, linetype = 'dashed') +
   geom_line(data=newdat1d,aes(y=predict(mod1d,newdata=newdat1d)),size = .75)+
     geom_line(data=newdat2d,aes(y=predict(mod1d,newdata=newdat2d)),size = .75)+
     geom_line(data=newdat3d,aes(y=predict(mod1d,newdata=newdat3d)),size = .75)+
+  theme_bw()+facet_grid(~ID)+ scale_fill_brewer(palette="Set1")+
+  theme(legend.position = "top",strip.text=element_text(size=12),axis.text=element_text(size=12),axis.title=element_text(size=12,face="bold"))
+
+
+  ################################################################################################################################################
+  
+main.data2<-main.data  
+
+main.data2$broke1<-ifelse(main.data2$SetInd %in% c(1:24),1,0) 
+main.data2$broke2<-ifelse(main.data2$SetInd %in% c(33:40),1,0) 
+
+bp1=25 #cutpoint 1
+bp2=33 #cutpoint 2
+#
+b1 <- function(x, bp1) ifelse(x < bp1, bp1 - x, 0)
+b2 <- function(x, bp1, bp2) ifelse(x >= bp1 & x < bp2, x - bp1, 0)
+b3 <- function(x, bp2) ifelse(x < bp2, 0, x - bp2)
+
+mod1d2 <- lmer(log_TargetRT ~ Type + b1(SetInd, bp1) + b2(SetInd, bp1,bp2) + b3(SetInd,bp2) + Type*b1(SetInd, bp1) + Type*b2(SetInd, bp1,bp2) + Type*b3(SetInd, bp2) 
+             +(broke1+broke2+b1(SetInd, bp1) + b2(SetInd, bp1,bp2) + b3(SetInd, bp2)| ID), data = main.data2, REML = FALSE, control = lmerControl(optimizer = "optimx", calc.derivs = FALSE,optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE)))
+
+newdat1d<-expand.grid(Type=unique(main.data2$Type),SetInd=1:24,ID=unique(main.data2$ID))
+newdat2d<-expand.grid(Type=unique(main.data2$Type),SetInd=25:32,ID=unique(main.data2$ID))
+newdat3d<-expand.grid(Type=unique(main.data2$Type),SetInd=33:40,ID=unique(main.data2$ID))
+
+newdat1d$broke1<-ifelse(newdat1d$SetInd %in% c(1:24),1,0) 
+newdat1d$broke2<-ifelse(newdat1d$SetInd %in% c(33:40),1,0) 
+
+newdat2d$broke1<-ifelse(newdat2d$SetInd %in% c(1:24),1,0) 
+newdat2d$broke2<-ifelse(newdat2d$SetInd %in% c(33:40),1,0) 
+
+newdat3d$broke1<-ifelse(newdat3d$SetInd %in% c(1:24),1,0) 
+newdat3d$broke2<-ifelse(newdat3d$SetInd %in% c(33:40),1,0) 
+
+
+  library(RColorBrewer)
+  library(ggplot2)
+
+  ggplot(main.data2, aes(x = SetInd, y = log_TargetRT,color=Type)) + 
+  geom_point(alpha=0.35) + 
+  geom_vline(aes(xintercept = 25), color = 'grey', size = 1, linetype = 'dashed') + 
+  geom_vline(aes(xintercept = 33), color = 'grey', size = 1, linetype = 'dashed') +
+  geom_line(data=newdat1d,aes(y=predict(mod1d2,newdata=newdat1d)),size = .75)+
+    geom_line(data=newdat2d,aes(y=predict(mod1d2,newdata=newdat2d)),size = .75)+
+    geom_line(data=newdat3d,aes(y=predict(mod1d2,newdata=newdat3d)),size = .75)+
   theme_bw()+facet_grid(~ID)+ scale_fill_brewer(palette="Set1")+
   theme(legend.position = "top",strip.text=element_text(size=12),axis.text=element_text(size=12),axis.title=element_text(size=12,face="bold"))
 
