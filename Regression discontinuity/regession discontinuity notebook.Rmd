@@ -1,0 +1,154 @@
+---
+title: 'R Notebook: Kuppu Statistical learning using multilevel regression discontinuity
+  analysis'
+output:
+  html_document: default
+  html_notebook: default
+  pdf_document: default
+  word_document: default
+---
+
+07/08/2017
+
+```{r,warning=F,message=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60)}
+
+#required packages
+
+packages <- c("optimx", "lme4","ggplot2", "rmarkdown","doBy","RColorBrewer")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())),repos="https://www.stats.bris.ac.uk/R/") 
+}
+
+library(optimx)
+library(lme4)
+library(ggplot2)
+library(doBy)
+library(RColorBrewer)
+```
+
+
+```{r,warning=F, tidy=TRUE, tidy.opts=list(width.cutoff=60)}
+library(doBy)
+library(knitr)
+namelist=c('002','003','004','005','006','007')#,'008','009' )
+nsubs=length(namelist)
+
+main.data<-data.frame(ID=factor(), SetInd=integer(), Type=integer(), TargetRT=integer())
+
+for (i in 1:nsubs){
+  
+  myname=namelist[i]
+  mycsv=paste0("C:/Users/pthompson/Dropbox/SL and WM paper/Revision/Pilot_Data_Revised task/Version_2/more_participants/",myname,".csv")
+  mydata= read.csv(mycsv)  # read csv file 
+  #get rid of RTs of inaacurate responses and any RT greater than 3000 ms:replace with NA. 
+  Rwdata=mydata
+  rawdata=Rwdata[ ,c(1,10,12,26)]
+  #in the original analysis the following section will be removed 
+  
+  #######this bit ensures inaccurate becomes, so not eliminated in next section, and at least RT can be extracted. 
+  rawdata$TargetRT[rawdata$Type==19 & rawdata$TargetRT>3000]<-2999
+  ##############
+  rawdata$TargetRT[rawdata$TargetACC==0]<-NA
+  rawdata$TargetRT[rawdata$TargetRT<100]<-NA
+  rawdata$TargetRT[rawdata$TargetRT>3000]<-NA
+  
+  RWdata<-rawdata
+  
+  #rename the types so median can be taken for each block 
+  RWdata$Type[RWdata$Type==1]<- "Adj_D"
+  RWdata$Type[RWdata$Type==2]<- "Adj_D"
+  RWdata$Type[RWdata$Type==3]<- "Adj_D"
+  RWdata$Type[RWdata$Type==4]<- "Adj_P"
+  RWdata$Type[RWdata$Type==5]<- "Adj_P"
+  RWdata$Type[RWdata$Type==6]<- "Adj_P"
+  RWdata$Type[RWdata$Type==7]<- "Adj_P"
+  RWdata$Type[RWdata$Type==8]<- "Adj_P"
+  RWdata$Type[RWdata$Type==9]<- "Adj_P"
+  RWdata$Type[RWdata$Type==10]<- "Non_D"
+  RWdata$Type[RWdata$Type==11]<- "Non_D"
+  RWdata$Type[RWdata$Type==12]<- "Non_D"
+  RWdata$Type[RWdata$Type==13]<- "Non_P"
+  RWdata$Type[RWdata$Type==14]<- "Non_P"
+  RWdata$Type[RWdata$Type==15]<- "Non_P"
+  RWdata$Type[RWdata$Type==16]<- "Non_P"
+  RWdata$Type[RWdata$Type==17]<- "Non_P"
+  RWdata$Type[RWdata$Type==18]<- "Non_P"
+  RWdata$Type[RWdata$Type==19]<- "rand"
+  
+  RWdata$ID<-substring(RWdata$ID,7,7)
+  RWdata$Type<-as.factor(RWdata$Type)
+  RWdata$Type<-factor(RWdata$Type,levels=c("rand", "Adj_D", "Adj_P", "Non_D", "Non_P"))
+  
+  detaildata<- summaryBy(TargetRT ~ SetInd+Type,  data=RWdata,
+                         FUN=c(median), na.rm=TRUE)
+  
+  detaildata$ID<-rep(RWdata$ID[4],length(detaildata[,1]))
+  
+  names(detaildata)<-c("SetInd", "Type", "TargetRT", "ID")
+  
+  main.data<-rbind(main.data,detaildata)
+  
+}
+
+
+
+main.data$ID <- as.factor(main.data$ID)
+```
+
+model summary and fitted values for each individuals random slopes and intercepts.
+
+```{r,warning=F, tidy=TRUE, tidy.opts=list(width.cutoff=60)}
+
+main.data2<-main.data  
+
+main.data2$broke1<-ifelse(main.data2$SetInd %in% c(1:24),1,0) 
+main.data2$broke2<-ifelse(main.data2$SetInd %in% c(33:40),1,0) 
+
+bp1=25 #cutpoint 1
+bp2=33 #cutpoint 2
+#
+b1 <- function(x, bp1) ifelse(x < bp1, bp1 - x, 0)
+b2 <- function(x, bp1, bp2) ifelse(x >= bp1 & x < bp2, x - bp1, 0)
+b3 <- function(x, bp2) ifelse(x < bp2, 0, x - bp2)
+
+mod1d <- lmer(TargetRT ~ Type + b1(SetInd, bp1) + b2(SetInd, bp1,bp2) + b3(SetInd,bp2) + Type*b1(SetInd, bp1) + Type*b2(SetInd, bp1,bp2) + Type*b3(SetInd, bp2) 
+             +(broke1+broke2+b1(SetInd, bp1) + b2(SetInd, bp1,bp2) + b3(SetInd, bp2)| ID), data = main.data2, REML = FALSE, control = lmerControl(optimizer = "optimx", calc.derivs = FALSE,optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE)))
+
+summary(mod1d)
+
+ranef(mod1d)
+
+```
+
+
+Plot the random slopes for individual participants by condition,
+
+
+```{r,warning=F, tidy=TRUE, tidy.opts=list(width.cutoff=60)}
+newdat1d<-expand.grid(Type=unique(main.data$Type),SetInd=1:24,ID=unique(main.data$ID))
+newdat2d<-expand.grid(Type=unique(main.data$Type),SetInd=25:32,ID=unique(main.data$ID))
+newdat3d<-expand.grid(Type=unique(main.data$Type),SetInd=33:40,ID=unique(main.data$ID))
+
+newdat1d$broke1<-ifelse(newdat1d$SetInd %in% c(1:24),1,0) 
+newdat1d$broke2<-ifelse(newdat1d$SetInd %in% c(33:40),1,0) 
+
+newdat2d$broke1<-ifelse(newdat2d$SetInd %in% c(1:24),1,0) 
+newdat2d$broke2<-ifelse(newdat2d$SetInd %in% c(33:40),1,0) 
+
+newdat3d$broke1<-ifelse(newdat3d$SetInd %in% c(1:24),1,0) 
+newdat3d$broke2<-ifelse(newdat3d$SetInd %in% c(33:40),1,0) 
+
+
+
+  ggplot(main.data, aes(x = SetInd, y = TargetRT,color=Type)) + 
+  geom_point(alpha=0.35) + 
+  geom_vline(aes(xintercept = 25), color = 'grey', size = 1, linetype = 'dashed') + 
+  geom_vline(aes(xintercept = 33), color = 'grey', size = 1, linetype = 'dashed') +
+  geom_line(data=newdat1d,aes(y=predict(mod1d,newdata=newdat1d)),size = .75)+
+    geom_line(data=newdat2d,aes(y=predict(mod1d,newdata=newdat2d)),size = .75)+
+    geom_line(data=newdat3d,aes(y=predict(mod1d,newdata=newdat3d)),size = .75)+
+  theme_bw()+facet_grid(~ID)+ scale_fill_brewer(palette="Set1")+
+  theme(legend.position = "top",strip.text=element_text(size=12),axis.text=element_text(size=12),axis.title=element_text(size=12,face="bold"))
+
+```
+
