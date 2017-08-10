@@ -89,7 +89,7 @@ b3 <- function(x, bp2) ifelse(x < bp2, 0, x - bp2)
 
 main.data2$SetInd_c<-scale(main.data2$SetInd)
 
-mod1d2 <- lmer(log_TargetRT ~ Type + b1(SetInd_c, bp1) + b2(SetInd_c, bp1,bp2) + b3(SetInd_c,bp2) + Type*b1(SetInd_c, bp1) + Type*b2(SetInd_c, bp1,bp2) + Type*b3(SetInd_c, bp2) +(broke1+broke2+b1(SetInd_c, bp1) + b2(SetInd_c, bp1,bp2) + b3(SetInd_c, bp2)| ID), data = main.data2, REML = TRUE)
+mod1d2 <- lmer(log_TargetRT ~ Type + b1(SetInd_c, bp1) + b2(SetInd_c, bp1,bp2) + b3(SetInd_c,bp2) + Type*b1(SetInd_c, bp1) + Type*b2(SetInd_c, bp1,bp2) + Type*b3(SetInd_c, bp2) +(0+b1(SetInd_c, bp1) + b2(SetInd_c, bp1,bp2) + b3(SetInd_c, bp2)| ID)+(0+broke1+broke2|ID), data = main.data2, REML = TRUE,control = lmerControl(optimizer = "optimx", calc.derivs = TRUE, optCtrl = list(method = "nlminb")))
 
 newdat1d<-expand.grid(Type=unique(main.data2$Type),SetInd_c=unique(main.data2$SetInd_c)[1:24],ID=unique(main.data2$ID))
 newdat2d<-expand.grid(Type=unique(main.data2$Type),SetInd_c=unique(main.data2$SetInd_c)[25:32],ID=unique(main.data2$ID))
@@ -137,3 +137,5 @@ qqline(resid(mod1d2))
 hist(resid(mod1d2),100)
 
 ###########################################################################################
+
+mod1d3 <- lmer(log_TargetRT ~ Type + b1(SetInd_c, bp1) + b2(SetInd_c, bp1,bp2) + b3(SetInd_c,bp2) + Type*b1(SetInd_c, bp1) + Type*b2(SetInd_c, bp1,bp2) + Type*b3(SetInd_c, bp2)+broke1+broke2 +(0+b1(SetInd_c, bp1) + b2(SetInd_c, bp1,bp2) + b3(SetInd_c, bp2)| ID)+(0+broke1+broke2|ID), data = main.data2, REML = TRUE,control = lmerControl(optimizer = "optimx", calc.derivs = TRUE, optCtrl = list(method = "nlminb")))
